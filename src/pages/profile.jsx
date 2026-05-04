@@ -32,6 +32,9 @@ const Profile = () => {
 
   const [form, setForm]     = useState({ firstName: user?.firstName || "", lastName: user?.lastName || "", email: user?.email || "" });
   const [preview, setPreview] = useState(profileImage || null);
+  useEffect(() => {
+  setPreview(profileImage || null);
+   }, [profileImage]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState(false);
