@@ -1,10 +1,10 @@
-import { useContext, useState, useRef } from "react";
+import { useContext, useState, useRef,useEffect } from "react";
 import { useNavigate } from "react-router";
 import photoProfile from "../assets/photoProfile.png";
 import AuthContext from "../config/AuthContext";
 import { updateUser } from "../config/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";s
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,7 +34,7 @@ const Profile = () => {
   const [preview, setPreview] = useState(profileImage || null);
   useEffect(() => {
   setPreview(profileImage || null);
-   }, [profileImage]);
+}, [profileImage]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState(false);
