@@ -1,6 +1,13 @@
 import { useState } from "react";
 import AuthContext from "../config/AuthContext";
 
+// Store profile image per user (keyed by email) so it survives logout/re-login
+const imgKey  = (user) => user?.email ? `profileImage_${user.email}` : null;
+const loadImg = (user) => {
+  const k = imgKey(user);
+  return k ? localStorage.getItem(k) || null : null;
+};
+
 const AuthContextProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
@@ -11,20 +18,33 @@ const AuthContextProvider = ({ children }) => {
     }
   });
 
-  const [profileImage, setProfileImage] = useState(
-    () => localStorage.getItem("profileImage") || null
-  );
+  const [profileImage, setProfileImage] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      const u = stored ? JSON.parse(stored) : null;
+      return loadImg(u);
+    } catch {
+      return null;
+    }
+  });
 
   const updateUser = (userData) => {
     setUser(userData);
-    if (userData) localStorage.setItem("user", JSON.stringify(userData));
-    else localStorage.removeItem("user");
+    if (userData) {
+      localStorage.setItem("user", JSON.stringify(userData));
+      // Restore saved image for this user on login
+      setProfileImage(loadImg(userData));
+    } else {
+      localStorage.removeItem("user");
+    }
   };
 
   const updateProfileImage = (base64) => {
     setProfileImage(base64);
-    if (base64) localStorage.setItem("profileImage", base64);
-    else localStorage.removeItem("profileImage");
+    const k = imgKey(user);
+    if (!k) return;
+    if (base64) localStorage.setItem(k, base64);
+    else localStorage.removeItem(k);
   };
 
   const logout = () => {
@@ -32,7 +52,7 @@ const AuthContextProvider = ({ children }) => {
     setProfileImage(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    localStorage.removeItem("profileImage");
+    // profileImage_<email> intentionally kept → reloads automatically on next login
   };
 
   return (

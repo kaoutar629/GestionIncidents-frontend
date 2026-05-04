@@ -367,19 +367,25 @@ const Incidents = () => {
             render: (v, row) => {
               if (!isAdmin) return <StatusBadge status={v} />;
               const isSaving = quickSavingId === row.id;
+              const colorMap = {
+                OPEN:        "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
+                IN_PROGRESS: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
+                RESOLVED:    "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+                CLOSED:      "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+              };
               return (
                 <div className="flex items-center gap-1.5">
                   <select
                     value={v}
                     disabled={isSaving}
                     onChange={(e) => handleQuickStatus(row, e.target.value)}
-                    className="h-7 rounded border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 cursor-pointer"
+                    className={`h-7 rounded-full border px-2.5 text-xs font-medium cursor-pointer focus:outline-none disabled:opacity-50 transition-colors ${colorMap[v] || "bg-slate-100 text-slate-600 border-slate-200"}`}
                   >
                     {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
                       <option key={k} value={k}>{cfg.label}</option>
                     ))}
                   </select>
-                  {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground flex-shrink-0" />}
                 </div>
               );
             },
