@@ -4,7 +4,7 @@ import photoProfile from "../assets/photoProfile.png";
 import AuthContext from "../config/AuthContext";
 import { updateUser } from "../config/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";s
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
