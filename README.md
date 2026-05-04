@@ -9,7 +9,7 @@ A full-stack incident management system built with Spring Boot and React, featur
 ### Prerequisites
 
 - **Node.js** v18+ and **npm** v9+
-- **Java** 17+
+- **Java** 21+
 - **Maven** 3.9+
 - **MySQL** 8+
 
