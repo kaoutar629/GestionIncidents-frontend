@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertCircle, Plus, Pencil, Trash2, Eye, Sparkles, CheckCircle2, Loader2, Paperclip, X, Image } from "lucide-react";
+import { AlertCircle, Plus, Pencil, Trash2, Eye, Sparkles, CheckCircle2, Loader2, Paperclip, X, Image, CalendarDays } from "lucide-react";
 
 const STATUS_CONFIG = {
   OPEN:        { label: "Nouveau",  className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -92,9 +92,13 @@ const Incidents = () => {
   const [aiApplied,    setAiApplied]    = useState(false);
   const aiTimerRef = useRef(null);
 
-  const [detailTicket, setDetail]      = useState(null);
-  const [filterPrio,   setFilterPrio]  = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [detailTicket,    setDetail]         = useState(null);
+  const [filterPrio,      setFilterPrio]     = useState("");
+  const [filterStatus,    setFilterStatus]   = useState("");
+  const [filterDateFrom,  setFilterDateFrom] = useState("");
+  const [filterDateTo,    setFilterDateTo]   = useState("");
+  // tracks which row is being quick-saved by admin
+  const [quickSavingId,   setQuickSavingId]  = useState(null);
   const fileRef = useRef(null);
 
   const clearFieldError = (key) => setFieldErrors((p) => ({ ...p, [key]: "" }));
@@ -197,6 +201,28 @@ const Incidents = () => {
     } finally { setSaving(false); }
   };
 
+  // Quick status change directly from the table (admin only)
+  const handleQuickStatus = async (ticket, newStatus) => {
+    if (newStatus === ticket.status) return;
+    setQuickSavingId(ticket.id);
+    try {
+      await updateIncident(ticket.id, {
+        title: ticket.title,
+        description: ticket.description || "",
+        priority: ticket.priority,
+        category: ticket.category || "",
+        status: newStatus,
+        createdById: ticket.createdById,
+        assignedUserId: ticket.assignedUserId || null,
+        imageBase64: ticket.imageBase64 || null,
+      });
+      toast.success("Statut mis à jour.");
+      fetchIncidents();
+    } catch (err) {
+      toast.error(parseApiError(err));
+    } finally { setQuickSavingId(null); }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer cet incident définitivement ?")) return;
     try { await deleteIncident(id); toast.success("Incident supprimé."); fetchIncidents(); }
@@ -212,11 +238,28 @@ const Incidents = () => {
     setShow(true);
   };
 
-  const filtered = useMemo(() =>
-    tickets.filter((t) =>
-      (!filterPrio   || t.priority === filterPrio) &&
-      (!filterStatus || t.status   === filterStatus)
-    ), [tickets, filterPrio, filterStatus]);
+  const hasDateFilter = filterDateFrom || filterDateTo;
+  const hasAnyFilter  = filterPrio || filterStatus || hasDateFilter;
+
+  const clearFilters = () => {
+    setFilterPrio(""); setFilterStatus(""); setFilterDateFrom(""); setFilterDateTo("");
+  };
+
+  const filtered = useMemo(() => {
+    const from = filterDateFrom ? new Date(filterDateFrom + "T00:00:00") : null;
+    const to   = filterDateTo   ? new Date(filterDateTo   + "T23:59:59") : null;
+    return tickets.filter((t) => {
+      if (filterPrio   && t.priority !== filterPrio)   return false;
+      if (filterStatus && t.status   !== filterStatus) return false;
+      if (from || to) {
+        const d = t.createdAt ? new Date(t.createdAt) : null;
+        if (!d) return false;
+        if (from && d < from) return false;
+        if (to   && d > to)   return false;
+      }
+      return true;
+    });
+  }, [tickets, filterPrio, filterStatus, filterDateFrom, filterDateTo]);
 
   const getUserLabel = (id) => {
     const u = usersList.find((u) => u.id === id);
@@ -249,20 +292,57 @@ const Incidents = () => {
         </Alert>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <FormSelect value={filterPrio} onChange={(e) => setFilterPrio(e.target.value)} className="w-40">
-          <option value="">Toutes priorités</option>
-          {Object.entries(PRIO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </FormSelect>
-        <FormSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-40">
-          <option value="">Tous statuts</option>
-          {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </FormSelect>
-        {(filterPrio || filterStatus) && (
-          <Button variant="ghost" size="sm" onClick={() => { setFilterPrio(""); setFilterStatus(""); }}>
-            <X className="h-4 w-4" />Effacer
-          </Button>
+      {/* ── Filters ── */}
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Priority */}
+          <FormSelect value={filterPrio} onChange={(e) => setFilterPrio(e.target.value)} className="w-40">
+            <option value="">Toutes priorités</option>
+            {Object.entries(PRIO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </FormSelect>
+
+          {/* Status */}
+          <FormSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-40">
+            <option value="">Tous statuts</option>
+            {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </FormSelect>
+
+          {/* Date range */}
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="h-9 w-36 text-sm"
+              title="Date de début"
+            />
+            <span className="text-muted-foreground text-sm">→</span>
+            <Input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="h-9 w-36 text-sm"
+              title="Date de fin"
+            />
+          </div>
+
+          {hasAnyFilter && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />Effacer les filtres
+            </Button>
+          )}
+        </div>
+
+        {/* Active filter summary */}
+        {hasAnyFilter && (
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} incident{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}
+            {filterPrio   ? ` · Priorité: ${PRIO_CONFIG[filterPrio]?.label}`     : ""}
+            {filterStatus ? ` · Statut: ${STATUS_CONFIG[filterStatus]?.label}`   : ""}
+            {filterDateFrom ? ` · Depuis: ${moment(filterDateFrom).format("DD/MM/YYYY")}` : ""}
+            {filterDateTo   ? ` · Jusqu'au: ${moment(filterDateTo).format("DD/MM/YYYY")}` : ""}
+          </p>
         )}
       </div>
 
@@ -281,7 +361,29 @@ const Incidents = () => {
               {v}
             </button>
           )},
-          { key: "status",   name: "Statut",   render: (v) => <StatusBadge status={v} /> },
+          {
+            key: "status",
+            name: "Statut",
+            render: (v, row) => {
+              if (!isAdmin) return <StatusBadge status={v} />;
+              const isSaving = quickSavingId === row.id;
+              return (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={v}
+                    disabled={isSaving}
+                    onChange={(e) => handleQuickStatus(row, e.target.value)}
+                    className="h-7 rounded border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 cursor-pointer"
+                  >
+                    {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
+                      <option key={k} value={k}>{cfg.label}</option>
+                    ))}
+                  </select>
+                  {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                </div>
+              );
+            },
+          },
           { key: "priority", name: "Priorité",  render: (v) => <PrioBadge priority={v} /> },
           { key: "category", name: "Catégorie", render: (v) => v
             ? <span className="text-sm text-muted-foreground">{v}</span>
@@ -400,8 +502,8 @@ const Incidents = () => {
             </div>
           </div>
 
-          {/* Status + Assigned (admin) */}
-          {(ticketId || isAdmin) && (
+          {/* Status (admin only) + Assigned (admin only) */}
+          {isAdmin && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Statut</Label>
