@@ -49,27 +49,39 @@ const Profile = () => {
     setError(""); setSuccess(false);
   };
 
-  const handleImageChange = (e) => {
-    setPhotoError("");
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleImageChange = (e) => {
+  setPhotoError("");
+  const file = e.target.files[0];
+  if (!file) return;
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setPhotoError("Format non supporté. Utilisez JPEG, PNG, WebP ou GIF.");
-      e.target.value = "";
-      return;
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setPhotoError(`Photo trop volumineuse (max ${MAX_SIZE_MB} Mo).`);
-      e.target.value = "";
-      return;
-    }
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    setPhotoError("Format non supporté. Utilisez JPEG, PNG, WebP ou GIF.");
+    e.target.value = "";
+    return;
+  }
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    setPhotoError(`Photo trop volumineuse (max ${MAX_SIZE_MB} Mo).`);
+    e.target.value = "";
+    return;
+  }
 
-    const reader = new FileReader();
-    reader.onload  = () => { const b64 = reader.result; setPreview(b64); updateProfileImage(b64); };
-    reader.onerror = () => setPhotoError("Erreur lors de la lecture du fichier.");
-    reader.readAsDataURL(file);
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    const MAX = 300; // px
+    const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+    canvas.width  = img.width  * ratio;
+    canvas.height = img.height * ratio;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    const b64 = canvas.toDataURL("image/jpeg", 0.8); // qualité 80%
+    setPreview(b64);
+    updateProfileImage(b64);
+    URL.revokeObjectURL(objectUrl);
   };
+  img.onerror = () => setPhotoError("Erreur lors de la lecture du fichier.");
+  img.src = objectUrl;
+};
 
   const validate = () => {
     const errs = {};

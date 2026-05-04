@@ -39,20 +39,28 @@ const AuthContextProvider = ({ children }) => {
     }
   };
 
-  const updateProfileImage = (base64) => {
-    setProfileImage(base64);
-    const k = imgKey(user);
-    if (!k) return;
-    if (base64) localStorage.setItem(k, base64);
-    else localStorage.removeItem(k);
-  };
+ // APRÈS
+const updateProfileImage = (base64) => {
+  setProfileImage(base64);
+  const k = imgKey(user);
+  if (!k) return;
+  if (base64) {
+    try {
+      localStorage.setItem(k, base64);
+    } catch (e) {
+      // quota dépassé — image gardée en mémoire seulement
+      console.warn("localStorage quota exceeded, profile image not persisted", e);
+    }
+  } else {
+    localStorage.removeItem(k);
+  }
+};
 
   const logout = () => {
     setUser(null);
     setProfileImage(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    // profileImage_<email> intentionally kept → reloads automatically on next login
   };
 
   return (
